@@ -244,6 +244,8 @@ elif page == "Richiesta":
         key="calculate_button"
     ):
 
+        st.write("WAREHOUSE")
+st.write(warehouse)
         result = calculate_withdrawal(
             currency,
             amount,
