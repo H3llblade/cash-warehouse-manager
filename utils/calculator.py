@@ -1,3 +1,4 @@
+from itertools import product
 from utils.constants import CURRENCIES
 
 
@@ -10,7 +11,7 @@ def get_reserve(bundles):
         1,
         round(bundles * 0.10)
     )
-print("NUOVO CALCULATOR CARICATO")
+
 
 def calculate_withdrawal(
     currency,
@@ -18,12 +19,9 @@ def calculate_withdrawal(
     warehouse
 ):
 
-    tags = sorted(
-        CURRENCIES[currency],
-        reverse=True
-    )
+    tags = CURRENCIES[currency]
 
-    available = []
+    data = []
 
     for tag in tags:
 
@@ -42,69 +40,91 @@ def calculate_withdrawal(
             bundles - reserve
         )
 
-        available.append(
+        data.append(
             {
                 "tag": tag,
+                "notes": notes,
                 "bundles": bundles,
                 "usable": usable,
-                "notes": notes,
                 "bundle_value": tag * 100
             }
         )
 
-    remaining = requested_amount
+    ranges = [
+        range(item["usable"] + 1)
+        for item in data
+    ]
+
+    best_combo = None
+    best_difference = None
+
+    for combo in product(*ranges):
+
+        total = 0
+
+        for i, bundles_taken in enumerate(combo):
+
+            total += (
+                bundles_taken *
+                data[i]["bundle_value"]
+            )
+
+        difference = abs(
+            requested_amount - total
+        )
+
+        if (
+            best_difference is None
+            or difference < best_difference
+        ):
+
+            best_difference = difference
+            best_combo = combo
+
+            if difference == 0:
+                break
 
     result = []
 
     obtained = 0
 
-    for item in available:
-
-        tag = item["tag"]
-
-        bundle_value = item["bundle_value"]
-
-        usable = item["usable"]
-
-        bundles_taken = min(
-            usable,
-            remaining // bundle_value
-        )
+    for i, bundles_taken in enumerate(best_combo):
 
         value_taken = (
             bundles_taken *
-            bundle_value
+            data[i]["bundle_value"]
         )
 
         obtained += value_taken
 
-        remaining -= value_taken
-
         result.append(
             {
-                "tag": tag,
-                "bundles_taken": bundles_taken,
-                "notes_taken": bundles_taken * 100,
-                "value_taken": value_taken,
+                "tag":
+                    data[i]["tag"],
+
+                "bundles_taken":
+                    bundles_taken,
+
+                "notes_taken":
+                    bundles_taken * 100,
+
+                "value_taken":
+                    value_taken,
+
                 "remaining_notes":
-                    item["notes"]
+                    data[i]["notes"]
                     -
                     (
                         bundles_taken
                         * 100
                     ),
+
                 "remaining_bundles":
-                    item["bundles"]
+                    data[i]["bundles"]
                     -
                     bundles_taken
             }
         )
-
-    difference = (
-        obtained
-        -
-        requested_amount
-    )
 
     return {
         "currency":
@@ -117,7 +137,9 @@ def calculate_withdrawal(
             obtained,
 
         "difference":
-            difference,
+            obtained
+            -
+            requested_amount,
 
         "details":
             result
