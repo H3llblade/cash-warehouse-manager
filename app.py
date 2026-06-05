@@ -163,36 +163,40 @@ elif page == "Magazzino":
         "GBP": [50, 20, 10, 5]
     }
 
+    additions = {}
+
     for currency, tags in currencies.items():
 
         st.subheader(currency)
 
         cols = st.columns(len(tags))
 
+        additions[currency] = {}
+
         for i, tag in enumerate(tags):
 
-            current = int(
+            current_stock = int(
                 warehouse[currency].get(
                     str(tag),
                     0
                 )
             )
 
-            warehouse[currency][str(tag)] = cols[i].number_input(
-                label=f"{currency}-{tag}",
-                value=current,
-                min_value=0,
-                step=100,
-                key=f"{currency}_{tag}"
+            cols[i].metric(
+                f"{tag}",
+                f"{current_stock:,}"
             )
 
-            bundles = (
-                warehouse[currency][str(tag)]
-                // 100
+            additions[currency][str(tag)] = cols[i].number_input(
+                label=f"Aggiungi {tag}",
+                min_value=0,
+                value=0,
+                step=100,
+                key=f"add_{currency}_{tag}"
             )
 
             cols[i].caption(
-                f"📦 {bundles} mazzette"
+                f"📦 Stock: {current_stock // 100} mazzette"
             )
 
         st.divider()
@@ -202,6 +206,12 @@ elif page == "Magazzino":
         key="save_warehouse"
     ):
 
+        for currency, tags in additions.items():
+
+            for tag, value in tags.items():
+
+                warehouse[currency][tag] += int(value)
+
         save_warehouse(
             warehouse
         )
@@ -209,6 +219,8 @@ elif page == "Magazzino":
         st.success(
             "Magazzino aggiornato"
         )
+
+        st.rerun()
 
 # -----------------------------
 # RICHIESTA
