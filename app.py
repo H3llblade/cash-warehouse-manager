@@ -1,152 +1,171 @@
 import streamlit as st
+import json
+import os
 
 st.set_page_config(
     page_title="Cash Warehouse Manager",
     page_icon="💰",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# Tema grafico
-st.markdown("""
-<style>
+# -----------------------------
+# FILES
+# -----------------------------
 
-.main {
-    padding-top: 1rem;
-}
+WAREHOUSE_FILE = "warehouse.json"
+HISTORY_FILE = "history.json"
 
-.block-container {
-    padding-top: 1rem;
-}
+# -----------------------------
+# UTILS
+# -----------------------------
 
-[data-testid="stSidebar"] {
-    background-color: #111827;
-}
+def load_warehouse():
+    if not os.path.exists(WAREHOUSE_FILE):
+        return {
+            "EUR":{"100":0,"50":0,"20":0},
+            "USD":{"100":0,"50":0,"20":0,"10":0},
+            "JPY":{"10000":0,"5000":0,"1000":0},
+            "GBP":{"50":0,"20":0,"10":0,"5":0}
+        }
 
-[data-testid="stMetricValue"] {
-    font-size: 24px;
-    font-weight: bold;
-}
+    with open(WAREHOUSE_FILE,"r") as f:
+        return json.load(f)
 
-.currency-card {
-    padding: 15px;
-    border-radius: 12px;
-    background-color: #1f2937;
-    text-align: center;
-    border: 1px solid #374151;
-}
+def save_warehouse(data):
+    with open(WAREHOUSE_FILE,"w") as f:
+        json.dump(data,f,indent=4)
 
-.currency-title {
-    font-size: 20px;
-    font-weight: bold;
-}
+def load_history():
+    if not os.path.exists(HISTORY_FILE):
+        return []
 
-.currency-sub {
-    font-size: 14px;
-    color: #9ca3af;
-}
+    with open(HISTORY_FILE,"r") as f:
+        return json.load(f)
 
-</style>
-""", unsafe_allow_html=True)
+def save_history(data):
+    with open(HISTORY_FILE,"w") as f:
+        json.dump(data,f,indent=4)
 
-# Header
-st.title("💰 Cash Warehouse Manager")
+# -----------------------------
+# MENU
+# -----------------------------
 
-st.markdown(
-    """
-Sistema di gestione contanti multi-valuta con:
-
-- 📦 Gestione Magazzino
-- 💸 Richieste di Prelievo
-- 📜 Storico Operazioni
-- 🏦 Supporto EUR / USD / JPY / GBP
-"""
+page = st.sidebar.radio(
+    "Navigazione",
+    [
+        "Dashboard",
+        "Magazzino",
+        "Richiesta",
+        "Storico"
+    ]
 )
 
-st.divider()
+# -----------------------------
+# DASHBOARD
+# -----------------------------
 
-# Dashboard rapida
+if page == "Dashboard":
 
-col1, col2, col3, col4 = st.columns(4)
+    st.title("💰 Cash Warehouse Manager")
 
-with col1:
-    st.markdown("""
-    <div class="currency-card">
-        <div class="currency-title">EUR</div>
-        <div class="currency-sub">
-            100 / 50 / 20
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    col1,col2,col3,col4 = st.columns(4)
 
-with col2:
-    st.markdown("""
-    <div class="currency-card">
-        <div class="currency-title">USD</div>
-        <div class="currency-sub">
-            100 / 50 / 20 / 10
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    with col1:
+        st.info("EUR\n\n100 / 50 / 20")
 
-with col3:
-    st.markdown("""
-    <div class="currency-card">
-        <div class="currency-title">JPY</div>
-        <div class="currency-sub">
-            10000 / 5000 / 1000
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    with col2:
+        st.info("USD\n\n100 / 50 / 20 / 10")
 
-with col4:
-    st.markdown("""
-    <div class="currency-card">
-        <div class="currency-title">GBP</div>
-        <div class="currency-sub">
-            50 / 20 / 10 / 5
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    with col3:
+        st.info("JPY\n\n10000 / 5000 / 1000")
 
-st.divider()
+    with col4:
+        st.info("GBP\n\n50 / 20 / 10 / 5")
 
-st.subheader("🚀 Come utilizzare l'app")
+# -----------------------------
+# MAGAZZINO
+# -----------------------------
 
-st.markdown("""
-### 1️⃣ Gestione Magazzino
+elif page == "Magazzino":
 
-Apri la pagina **Gestione Magazzino** dal menu laterale e inserisci il numero di banconote disponibili per ogni taglio.
+    st.title("📦 Magazzino")
 
----
+    warehouse = load_warehouse()
 
-### 2️⃣ Nuova Richiesta
+    currencies = {
+        "EUR":[100,50,20],
+        "USD":[100,50,20,10],
+        "JPY":[10000,5000,1000],
+        "GBP":[50,20,10,5]
+    }
 
-Vai nella pagina **Nuova Richiesta** e inserisci:
+    for currency,tags in currencies.items():
 
-- valuta
-- importo richiesto
+        st.subheader(currency)
 
-Premi **🧮 Calcola** per ottenere la migliore composizione possibile.
+        cols = st.columns(len(tags))
 
----
+        for i,tag in enumerate(tags):
 
-### 3️⃣ Conferma Prelievo
+            current = warehouse[currency][str(tag)]
 
-Premi **✅ Conferma Prelievo** per:
+            warehouse[currency][str(tag)] = cols[i].number_input(
+                f"{tag}",
+                value=current,
+                min_value=0,
+                step=100
+            )
 
-- aggiornare il magazzino
-- registrare l'operazione nello storico
+            cols[i].caption(
+                f"Mazzette: {warehouse[currency][str(tag)] // 100}"
+            )
 
----
+    if st.button("💾 Salva"):
 
-### 4️⃣ Storico
+        save_warehouse(warehouse)
 
-Consulta tutte le operazioni effettuate nella pagina **📜 Storico Operazioni**.
-""")
+        st.success("Magazzino aggiornato")
 
-st.divider()
+# -----------------------------
+# RICHIESTA
+# -----------------------------
 
-st.success(
-    "Sistema pronto. Utilizza il menu laterale per iniziare."
-)
+elif page == "Richiesta":
+
+    st.title("💸 Nuova Richiesta")
+
+    warehouse = load_warehouse()
+
+    currency = st.selectbox(
+        "Valuta",
+        ["EUR","USD","JPY","GBP"]
+    )
+
+    amount = st.number_input(
+        "Importo richiesto",
+        min_value=0
+    )
+
+    st.warning(
+        "La logica avanzata verrà collegata qui."
+    )
+
+# -----------------------------
+# STORICO
+# -----------------------------
+
+elif page == "Storico":
+
+    st.title("📜 Storico")
+
+    history = load_history()
+
+    if not history:
+
+        st.info(
+            "Nessuna operazione registrata."
+        )
+
+    else:
+
+        st.json(history)
