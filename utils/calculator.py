@@ -10,7 +10,7 @@ def get_reserve(bundles):
         1,
         round(bundles * 0.10)
     )
-
+print("NUOVO CALCULATOR CARICATO")
 
 def calculate_withdrawal(
     currency,
