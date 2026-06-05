@@ -93,38 +93,58 @@ elif page == "Magazzino":
     warehouse = load_warehouse()
 
     currencies = {
-        "EUR":[100,50,20],
-        "USD":[100,50,20,10],
-        "JPY":[10000,5000,1000],
-        "GBP":[50,20,10,5]
+        "EUR": [100, 50, 20],
+        "USD": [100, 50, 20, 10],
+        "JPY": [10000, 5000, 1000],
+        "GBP": [50, 20, 10, 5]
     }
 
-    for currency,tags in currencies.items():
+    for currency, tags in currencies.items():
 
         st.subheader(currency)
 
         cols = st.columns(len(tags))
 
-        for i,tag in enumerate(tags):
+        for i, tag in enumerate(tags):
 
-            current = warehouse[currency][str(tag)]
+            current = int(
+                warehouse[currency].get(
+                    str(tag),
+                    0
+                )
+            )
 
             warehouse[currency][str(tag)] = cols[i].number_input(
-                f"{tag}",
+                label=f"{currency}-{tag}",
                 value=current,
                 min_value=0,
-                step=100
+                step=100,
+                key=f"{currency}_{tag}"
+            )
+
+            bundles = (
+                warehouse[currency][str(tag)]
+                // 100
             )
 
             cols[i].caption(
-                f"Mazzette: {warehouse[currency][str(tag)] // 100}"
+                f"📦 {bundles} mazzette"
             )
 
-    if st.button("💾 Salva"):
+        st.divider()
 
-        save_warehouse(warehouse)
+    if st.button(
+        "💾 Salva",
+        key="save_warehouse"
+    ):
 
-        st.success("Magazzino aggiornato")
+        save_warehouse(
+            warehouse
+        )
+
+        st.success(
+            "Magazzino aggiornato"
+        )
 
 # -----------------------------
 # RICHIESTA
