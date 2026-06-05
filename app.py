@@ -127,7 +127,26 @@ Vai nella pagina **Nuova Richiesta** e inserisci:
 - valuta
 - importo richiesto
 
-Premi:
+Premi **🧮 Calcola** per ottenere la migliore composizione possibile.
 
-```text
-🧮 Calcola
+---
+
+### 3️⃣ Conferma Prelievo
+
+Premi **✅ Conferma Prelievo** per:
+
+- aggiornare il magazzino
+- registrare l'operazione nello storico
+
+---
+
+### 4️⃣ Storico
+
+Consulta tutte le operazioni effettuate nella pagina **📜 Storico Operazioni**.
+""")
+
+st.divider()
+
+st.success(
+    "Sistema pronto. Utilizza il menu laterale per iniziare."
+)
