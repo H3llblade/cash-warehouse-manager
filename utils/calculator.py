@@ -49,8 +49,19 @@ def calculate_withdrawal(
         for item in data
     ]
 
-    best_solution = None
-    best_score = -999999999
+difference = abs(
+    requested_amount - total
+)
+
+if best_solution is None:
+
+    best_solution = combo
+    best_difference = difference
+
+elif difference < best_difference:
+
+    best_solution = combo
+    best_difference = difference
 
     for combo in product(*ranges):
 
