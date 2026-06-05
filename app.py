@@ -88,18 +88,16 @@ if page == "Dashboard":
 
     warehouse = load_warehouse()
 
-    st.subheader("📊 Situazione Magazzino")
+    cards = st.columns(4)
 
-    col1, col2, col3, col4 = st.columns(4)
-
-    cards = [
-        ("EUR", "€", col1),
-        ("USD", "$", col2),
-        ("JPY", "¥", col3),
-        ("GBP", "£", col4)
+    configs = [
+        ("EUR", "€"),
+        ("USD", "$"),
+        ("JPY", "¥"),
+        ("GBP", "£")
     ]
 
-    for currency, symbol, col in cards:
+    for i, (currency, symbol) in enumerate(configs):
 
         total_notes = 0
         total_bundles = 0
@@ -113,23 +111,30 @@ if page == "Dashboard":
             total_bundles += qty // 100
             total_value += qty * int(tag)
 
-        col.metric(
-            label=f"{symbol} Mazzette",
-            value=total_bundles
-        )
-
-        col.metric(
-            label=f"{symbol} Valore",
-            value=f"{total_value:,.0f}"
+        cards[i].markdown(
+            f"""
+            <div style="
+                background:#1E1E1E;
+                padding:20px;
+                border-radius:15px;
+                border:1px solid #333;
+                text-align:center;
+            ">
+                <h1>{symbol}</h1>
+                <h3>{total_bundles} mazzette</h3>
+                <h4>{total_value:,.0f}</h4>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
     st.divider()
 
-    st.subheader("Dettaglio Tagli")
+    st.subheader("📦 Dettaglio Magazzino")
 
-    for currency, symbol, _ in cards:
+    for currency, symbol in configs:
 
-        st.markdown(f"### {symbol}")
+        st.markdown(f"## {symbol}")
 
         cols = st.columns(len(warehouse[currency]))
 
@@ -138,10 +143,9 @@ if page == "Dashboard":
         ):
 
             cols[i].metric(
-                label=f"{tag}",
-                value=f"{qty // 100} mazz."
+                f"{tag}",
+                f"{qty // 100} mazz."
             )
-
 # -----------------------------
 # MAGAZZINO
 # -----------------------------
@@ -212,23 +216,118 @@ elif page == "Magazzino":
 
 elif page == "Richiesta":
 
+    from utils.calculator import (
+        calculate_withdrawal
+    )
+
     st.title("💸 Nuova Richiesta")
 
     warehouse = load_warehouse()
 
     currency = st.selectbox(
         "Valuta",
-        ["EUR","USD","JPY","GBP"]
+        ["EUR", "USD", "JPY", "GBP"]
     )
 
     amount = st.number_input(
         "Importo richiesto",
-        min_value=0
+        min_value=0,
+        step=1000
     )
 
-    st.warning(
-        "La logica avanzata verrà collegata qui."
-    )
+    if st.button(
+        "🧮 Calcola"
+    ):
+
+        result = calculate_withdrawal(
+            currency,
+            amount,
+            warehouse
+        )
+
+        st.session_state[
+            "withdrawal_result"
+        ] = result
+
+    if (
+        "withdrawal_result"
+        in st.session_state
+    ):
+
+        result = st.session_state[
+            "withdrawal_result"
+        ]
+
+        st.divider()
+
+        st.metric(
+            "Importo richiesto",
+            f"{result['requested_amount']:,.0f}"
+        )
+
+        st.metric(
+            "Importo ottenuto",
+            f"{result['obtained_amount']:,.0f}"
+        )
+
+        st.metric(
+            "Differenza",
+            f"{result['difference']:,.0f}"
+        )
+
+        st.divider()
+
+        st.subheader(
+            "Mazzette da prelevare"
+        )
+
+        for item in result["details"]:
+
+            if item["bundles_taken"] > 0:
+
+                st.info(
+                    f"{item['tag']} → "
+                    f"{item['bundles_taken']} mazzette "
+                    f"({item['notes_taken']} banconote)"
+                )
+
+        if st.button(
+            "✅ Conferma Prelievo"
+        ):
+
+            for item in result["details"]:
+
+                tag = str(
+                    item["tag"]
+                )
+
+                warehouse[currency][tag] -= (
+                    item["notes_taken"]
+                )
+
+            save_warehouse(
+                warehouse
+            )
+
+            history = load_history()
+
+            history.append(
+                result
+            )
+
+            save_history(
+                history
+            )
+
+            st.success(
+                "Prelievo registrato."
+            )
+
+            del st.session_state[
+                "withdrawal_result"
+            ]
+
+            st.rerun()
 
 # -----------------------------
 # STORICO
