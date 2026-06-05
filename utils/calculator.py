@@ -8,6 +8,52 @@ def get_reserve(bundles):
     return max(1, round(bundles * 0.10))
 
 
+def _proportional(requested_amount, data):
+    """
+    Distribuisce l'importo tra i tagli proporzionalmente alla loro
+    capacità usabile (mazzette × valore mazzetta).
+
+    Fase 1 — quota proporzionale (floor): ogni taglio riceve una
+    fetta di mazzette commisurata alla propria capacità.
+    Fase 2 — residuo con greedy: il valore rimasto viene assegnato
+    partendo dal taglio più grande.
+
+    Restituisce (combo_list, remaining).
+    """
+    total_capacity = sum(
+        item["usable"] * item["bundle_value"]
+        for item in data
+        if item["usable"] > 0
+    )
+    if total_capacity == 0:
+        return [0] * len(data), requested_amount
+
+    result    = [0] * len(data)
+    remaining = requested_amount
+
+    # Fase 1: quota proporzionale
+    for i, item in enumerate(data):
+        if item["usable"] == 0:
+            continue
+        share   = (item["usable"] * item["bundle_value"]) / total_capacity
+        target  = share * requested_amount
+        bundles = min(item["usable"], int(target // item["bundle_value"]))
+        result[i]  = bundles
+        remaining -= bundles * item["bundle_value"]
+
+    # Fase 2: residuo (greedy dal taglio più grande)
+    for i, item in enumerate(data):
+        if remaining <= 0:
+            break
+        available = item["usable"] - result[i]
+        if available > 0 and remaining >= item["bundle_value"]:
+            extra       = min(available, remaining // item["bundle_value"])
+            result[i]  += extra
+            remaining  -= extra * item["bundle_value"]
+
+    return result, remaining
+
+
 def calculate_withdrawal(currency, requested_amount, warehouse):
     tags = CURRENCIES[currency]
 
@@ -25,32 +71,21 @@ def calculate_withdrawal(currency, requested_amount, warehouse):
             "bundle_value": tag * 100,
         })
 
-    # ── Step 1: greedy (taglio più grande → più piccolo) ─────────────
-    # Usa quante mazzette possibili del taglio maggiore, poi scende.
-    # Questo produce la combinazione con il minor numero di mazzette
-    # e privilegia i tagli alti.
-    greedy = []
-    remaining = requested_amount
-    for item in data:
-        taken = (
-            min(item["usable"], remaining // item["bundle_value"])
-            if remaining >= item["bundle_value"]
-            else 0
-        )
-        greedy.append(taken)
-        remaining -= taken * item["bundle_value"]
+    # ── Strategia 1: distribuzione proporzionale ─────────────────────
+    # Usa tutti i tagli disponibili in proporzione alla loro capacità.
+    prop_list, prop_remaining = _proportional(requested_amount, data)
 
-    if remaining == 0:
-        # Match esatto trovato con greedy: usato direttamente
-        best_combo = tuple(greedy)
+    if prop_remaining == 0:
+        best_combo = tuple(prop_list)
+
     else:
-        # ── Step 2: ricerca esaustiva (fallback) ──────────────────────
+        # ── Strategia 2: ricerca esaustiva (fallback) ─────────────────
         # Necessaria quando i tagli non sono multipli esatti tra loro
         # (es. EUR 100/50/20 → mazzette 10000/5000/2000).
-        # Inizia dall'esito greedy come baseline.
-        best_combo      = tuple(greedy)
-        best_difference = abs(remaining)
-        best_total      = requested_amount - remaining
+        prop_total      = requested_amount - prop_remaining
+        best_combo      = tuple(prop_list)
+        best_difference = abs(prop_remaining)
+        best_total      = prop_total
 
         ranges = [range(item["usable"] + 1) for item in data]
 
@@ -64,7 +99,6 @@ def calculate_withdrawal(currency, requested_amount, warehouse):
                 best_difference = difference
                 best_combo      = combo
                 best_total      = total
-
                 if difference == 0:
                     break
 
