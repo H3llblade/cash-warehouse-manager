@@ -1,12 +1,12 @@
+from itertools import product
 from utils.constants import CURRENCIES
 
 
-def get_minimum_reserve(bundles):
-
+def get_reserve(bundles):
     if bundles < 10:
         return min(2, bundles)
 
-    return max(1, round(bundles * 0.10))
+    return max(2, round(bundles * 0.10))
 
 
 def calculate_withdrawal(
@@ -17,11 +17,7 @@ def calculate_withdrawal(
 
     tags = CURRENCIES[currency]
 
-    result = []
-
-    remaining = requested_amount
-
-    available_data = []
+    data = []
 
     for tag in tags:
 
@@ -29,88 +25,162 @@ def calculate_withdrawal(
 
         bundles = notes // 100
 
-        reserve = get_minimum_reserve(
+        reserve = get_reserve(
             bundles
         )
 
         usable = max(
-            bundles - reserve,
-            0
+            0,
+            bundles - reserve
         )
 
-        available_data.append(
+        data.append(
             {
                 "tag": tag,
-                "notes": notes,
                 "bundles": bundles,
-                "reserve": reserve,
                 "usable": usable,
-                "bundle_value": tag * 100
+                "bundle_value": tag * 100,
+                "notes": notes
             }
         )
 
-    available_data.sort(
-        key=lambda x: x["tag"],
-        reverse=True
-    )
+    ranges = [
+        range(item["usable"] + 1)
+        for item in data
+    ]
 
-    total_obtained = 0
+    best_solution = None
+    best_score = -999999999
 
-    for item in available_data:
+    for combo in product(*ranges):
 
-        tag = item["tag"]
+        total = 0
 
-        bundle_value = item["bundle_value"]
+        used_tags = 0
 
-        usable = item["usable"]
+        for i, amount in enumerate(combo):
 
-        bundles_to_take = min(
-            usable,
-            remaining // bundle_value
+            total += (
+                amount *
+                data[i]["bundle_value"]
+            )
+
+            if amount > 0:
+                used_tags += 1
+
+        difference = abs(
+            requested_amount - total
         )
+
+        residual_stock = 0
+
+        imbalance = 0
+
+        percentages = []
+
+        for i, amount in enumerate(combo):
+
+            residual_stock += (
+                data[i]["usable"] -
+                amount
+            )
+
+            if data[i]["usable"] > 0:
+
+                percentages.append(
+                    amount /
+                    data[i]["usable"]
+                )
+
+        if len(percentages) > 1:
+
+            imbalance = (
+                max(percentages)
+                -
+                min(percentages)
+            )
+
+        score = 0
+
+        score -= difference
+
+        score += (
+            used_tags * 100000
+        )
+
+        score += (
+            residual_stock * 10
+        )
+
+        score -= (
+            imbalance * 1000
+        )
+
+        if score > best_score:
+
+            best_score = score
+
+            best_solution = combo
+
+    result = []
+
+    obtained = 0
+
+    for i, bundles_taken in enumerate(
+        best_solution
+    ):
 
         value_taken = (
-            bundles_to_take *
-            bundle_value
+            bundles_taken *
+            data[i]["bundle_value"]
         )
 
-        notes_taken = (
-            bundles_to_take *
-            100
-        )
-
-        remaining -= value_taken
-
-        total_obtained += value_taken
+        obtained += value_taken
 
         result.append(
             {
-                "tag": tag,
-                "notes_taken": notes_taken,
-                "bundles_taken": bundles_to_take,
-                "value_taken": value_taken,
+                "tag":
+                    data[i]["tag"],
+
+                "bundles_taken":
+                    bundles_taken,
+
+                "notes_taken":
+                    bundles_taken * 100,
+
+                "value_taken":
+                    value_taken,
+
                 "remaining_notes":
-                    item["notes"] -
-                    notes_taken,
+                    data[i]["notes"]
+                    -
+                    (
+                        bundles_taken
+                        *
+                        100
+                    ),
+
                 "remaining_bundles":
-                    item["bundles"] -
-                    bundles_to_take
+                    data[i]["bundles"]
+                    -
+                    bundles_taken
             }
         )
 
-    difference = (
-        requested_amount -
-        total_obtained
-    )
-
     return {
-        "currency": currency,
+        "currency":
+            currency,
+
         "requested_amount":
             requested_amount,
+
         "obtained_amount":
-            total_obtained,
+            obtained,
+
         "difference":
-            difference,
+            obtained -
+            requested_amount,
+
         "details":
             result
     }
