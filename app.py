@@ -245,7 +245,8 @@ elif page == "Richiesta":
     ):
 
         st.write("WAREHOUSE")
-st.write(warehouse)
+        st.write(warehouse)
+        
         result = calculate_withdrawal(
             currency,
             amount,
