@@ -36,11 +36,20 @@ if (
 
 symbol = CURRENCY_SYMBOLS[currency]
 
+# Valore minimo di una mazzetta per questa valuta (100 banconote × taglio minimo)
+min_bundle_value = min(CURRENCIES[currency]) * 100
+
 amount = st.number_input(
     f"Importo richiesto ({symbol})",
     min_value=0,
-    step=1000
+    step=min_bundle_value
 )
+
+if amount > 0 and amount < min_bundle_value:
+    st.warning(
+        f"Importo minimo prelevabile: {symbol}{min_bundle_value:,.0f} "
+        f"(1 mazzetta da {min(CURRENCIES[currency])}{symbol} × 100 banconote)"
+    )
 
 if st.button("🧮 Calcola"):
 

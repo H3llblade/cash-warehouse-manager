@@ -1,34 +1,41 @@
-import json
-import os
+import streamlit as st
+from streamlit_local_storage import LocalStorage
 
-WAREHOUSE_FILE = "warehouse.json"
-HISTORY_FILE = "history.json"
+_DEFAULT_WAREHOUSE = {
+    "EUR": {"100": 0, "50": 0, "20": 0},
+    "USD": {"100": 0, "50": 0, "20": 0, "10": 0},
+    "JPY": {"10000": 0, "5000": 0, "1000": 0},
+    "GBP": {"50": 0, "20": 0, "10": 0, "5": 0}
+}
+
+
+def _storage():
+    return LocalStorage()
 
 
 def load_warehouse():
-    if not os.path.exists(WAREHOUSE_FILE):
-        return {}
-
-    with open(WAREHOUSE_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    data = _storage().getItem("warehouse")
+    if not data:
+        return {
+            k: dict(v)
+            for k, v in _DEFAULT_WAREHOUSE.items()
+        }
+    return data
 
 
 def save_warehouse(data):
-    with open(WAREHOUSE_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4)
+    _storage().setItem("warehouse", data)
 
 
 def load_history():
-    if not os.path.exists(HISTORY_FILE):
+    data = _storage().getItem("history")
+    if not data:
         return []
-
-    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return data
 
 
 def save_history(data):
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4)
+    _storage().setItem("history", data)
 
 
 def add_history_entry(entry):

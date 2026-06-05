@@ -57,6 +57,7 @@ def calculate_withdrawal(
 
     best_combo = None
     best_difference = None
+    best_total = None
 
     for combo in product(*ranges):
 
@@ -73,13 +74,22 @@ def calculate_withdrawal(
             requested_amount - total
         )
 
-        if (
+        # A parità di differenza preferisce la combo che dà più denaro
+        # (evita di restituire 0 quando esiste una soluzione parziale)
+        better = (
             best_difference is None
             or difference < best_difference
-        ):
+            or (
+                difference == best_difference
+                and total > best_total
+            )
+        )
+
+        if better:
 
             best_difference = difference
             best_combo = combo
+            best_total = total
 
             if difference == 0:
                 break
