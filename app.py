@@ -216,6 +216,8 @@ elif page == "Magazzino":
 
 elif page == "Richiesta":
 
+    import pandas as pd
+
     from utils.calculator import (
         calculate_withdrawal
     )
@@ -226,17 +228,20 @@ elif page == "Richiesta":
 
     currency = st.selectbox(
         "Valuta",
-        ["EUR", "USD", "JPY", "GBP"]
+        ["EUR", "USD", "JPY", "GBP"],
+        key="currency_select"
     )
 
     amount = st.number_input(
         "Importo richiesto",
         min_value=0,
-        step=1000
+        step=1000,
+        key="requested_amount"
     )
 
     if st.button(
-        "🧮 Calcola"
+        "🧮 Calcola",
+        key="calculate_button"
     ):
 
         result = calculate_withdrawal(
@@ -245,63 +250,72 @@ elif page == "Richiesta":
             warehouse
         )
 
-        st.session_state[
-            "withdrawal_result"
-        ] = result
+        st.session_state["withdrawal_result"] = result
 
-    if (
-        "withdrawal_result"
-        in st.session_state
-    ):
+    if "withdrawal_result" in st.session_state:
 
-        result = st.session_state[
-            "withdrawal_result"
-        ]
+        result = st.session_state["withdrawal_result"]
 
         st.divider()
 
-        st.metric(
-            "Importo richiesto",
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "Richiesto",
             f"{result['requested_amount']:,.0f}"
         )
 
-        st.metric(
-            "Importo ottenuto",
+        col2.metric(
+            "Ottenuto",
             f"{result['obtained_amount']:,.0f}"
         )
 
-        st.metric(
+        col3.metric(
             "Differenza",
             f"{result['difference']:,.0f}"
         )
 
         st.divider()
 
-        st.subheader(
-            "Mazzette da prelevare"
-        )
+        rows = []
 
         for item in result["details"]:
 
-            if item["bundles_taken"] > 0:
+            rows.append({
+                "Taglio": item["tag"],
+                "Mazzette": item["bundles_taken"],
+                "Banconote": item["notes_taken"],
+                "Valore": item["value_taken"],
+                "Residuo Mazzette": item["remaining_bundles"]
+            })
 
-                st.info(
-                    f"{item['tag']} → "
-                    f"{item['bundles_taken']} mazzette "
-                    f"({item['notes_taken']} banconote)"
-                )
+        df = pd.DataFrame(rows)
+
+        st.subheader("📦 Composizione Prelievo")
+
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        if result["difference"] == 0:
+            st.success(
+                "Importo ottenuto esattamente."
+            )
+        else:
+            st.warning(
+                f"Differenza di {result['difference']:,.0f}"
+            )
 
         if st.button(
-            "✅ Conferma Prelievo"
+            "✅ Conferma Prelievo",
+            key="confirm_withdrawal"
         ):
 
             for item in result["details"]:
 
-                tag = str(
-                    item["tag"]
-                )
-
-                warehouse[currency][tag] -= (
+                warehouse[currency][str(item["tag"])] -= (
                     item["notes_taken"]
                 )
 
@@ -311,21 +325,27 @@ elif page == "Richiesta":
 
             history = load_history()
 
-            history.append(
-                result
-            )
+            from datetime import datetime
+
+            history.append({
+                "timestamp":
+                    datetime.now().strftime(
+                        "%d/%m/%Y %H:%M:%S"
+                    ),
+                **result
+            })
 
             save_history(
                 history
             )
 
-            st.success(
-                "Prelievo registrato."
-            )
-
             del st.session_state[
                 "withdrawal_result"
             ]
+
+            st.success(
+                "Prelievo registrato."
+            )
 
             st.rerun()
 
@@ -335,7 +355,9 @@ elif page == "Richiesta":
 
 elif page == "Storico":
 
-    st.title("📜 Storico")
+    import pandas as pd
+
+    st.title("📜 Storico Operazioni")
 
     history = load_history()
 
@@ -347,4 +369,48 @@ elif page == "Storico":
 
     else:
 
-        st.json(history)
+        rows = []
+
+        for op in history:
+
+            rows.append({
+                "Data":
+                    op.get(
+                        "timestamp",
+                        "-"
+                    ),
+                "Valuta":
+                    op["currency"],
+                "Richiesto":
+                    op["requested_amount"],
+                "Ottenuto":
+                    op["obtained_amount"],
+                "Differenza":
+                    op["difference"]
+            })
+
+        st.dataframe(
+            pd.DataFrame(rows),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.divider()
+
+        for i, op in enumerate(
+            reversed(history)
+        ):
+
+            with st.expander(
+                f"{op.get('timestamp','-')} | {op['currency']} | {op['requested_amount']:,.0f}"
+            ):
+
+                details = pd.DataFrame(
+                    op["details"]
+                )
+
+                st.dataframe(
+                    details,
+                    use_container_width=True,
+                    hide_index=True
+                )
