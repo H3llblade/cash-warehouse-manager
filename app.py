@@ -86,19 +86,61 @@ if page == "Dashboard":
 
     st.title("💰 Cash Warehouse Manager")
 
-    col1,col2,col3,col4 = st.columns(4)
+    warehouse = load_warehouse()
 
-    with col1:
-        st.info("EUR\n\n100 / 50 / 20")
+    st.subheader("📊 Situazione Magazzino")
 
-    with col2:
-        st.info("USD\n\n100 / 50 / 20 / 10")
+    col1, col2, col3, col4 = st.columns(4)
 
-    with col3:
-        st.info("JPY\n\n10000 / 5000 / 1000")
+    cards = [
+        ("EUR", "€", col1),
+        ("USD", "$", col2),
+        ("JPY", "¥", col3),
+        ("GBP", "£", col4)
+    ]
 
-    with col4:
-        st.info("GBP\n\n50 / 20 / 10 / 5")
+    for currency, symbol, col in cards:
+
+        total_notes = 0
+        total_bundles = 0
+        total_value = 0
+
+        for tag, qty in warehouse[currency].items():
+
+            qty = int(qty)
+
+            total_notes += qty
+            total_bundles += qty // 100
+            total_value += qty * int(tag)
+
+        col.metric(
+            label=f"{symbol} Mazzette",
+            value=total_bundles
+        )
+
+        col.metric(
+            label=f"{symbol} Valore",
+            value=f"{total_value:,.0f}"
+        )
+
+    st.divider()
+
+    st.subheader("Dettaglio Tagli")
+
+    for currency, symbol, _ in cards:
+
+        st.markdown(f"### {symbol}")
+
+        cols = st.columns(len(warehouse[currency]))
+
+        for i, (tag, qty) in enumerate(
+            warehouse[currency].items()
+        ):
+
+            cols[i].metric(
+                label=f"{tag}",
+                value=f"{qty // 100} mazz."
+            )
 
 # -----------------------------
 # MAGAZZINO
