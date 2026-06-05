@@ -18,22 +18,23 @@ from utils.calculator import (
     calculate_withdrawal
 )
 
-st.title(
-    "💸 Nuova Richiesta"
-)
+st.title("💸 Nuova Richiesta")
 
 warehouse = load_warehouse()
 
 currency = st.selectbox(
     "Valuta",
-    list(
-        CURRENCIES.keys()
-    )
+    list(CURRENCIES.keys())
 )
 
-symbol = (
-    CURRENCY_SYMBOLS[currency]
-)
+# Se l'utente cambia valuta, il risultato precedente non è più valido
+if (
+    "result" in st.session_state
+    and st.session_state.get("result_currency") != currency
+):
+    del st.session_state["result"]
+
+symbol = CURRENCY_SYMBOLS[currency]
 
 amount = st.number_input(
     f"Importo richiesto ({symbol})",
@@ -49,99 +50,78 @@ if st.button("🧮 Calcola"):
         warehouse
     )
 
-    st.session_state[
-        "result"
-    ] = result
+    st.session_state["result"] = result
+    st.session_state["result_currency"] = currency
 
 if "result" in st.session_state:
 
-    result = (
-        st.session_state["result"]
+    result = st.session_state["result"]
+
+    st.divider()
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Richiesto",
+        f"{symbol}{result['requested_amount']:,.0f}"
     )
 
-    st.subheader(
-        "Risultato"
-    )
-
-    st.metric(
-        "Totale ottenuto",
+    col2.metric(
+        "Ottenuto",
         f"{symbol}{result['obtained_amount']:,.0f}"
     )
 
-    st.metric(
+    col3.metric(
         "Differenza",
         f"{symbol}{result['difference']:,.0f}"
     )
 
-    df = pd.DataFrame(
-        result["details"]
-    )
+    df = pd.DataFrame(result["details"])
+
+    st.subheader("📦 Composizione Prelievo")
 
     st.dataframe(
         df,
-        use_container_width=True
+        use_container_width=True,
+        hide_index=True
     )
 
-    if st.button(
-        "✅ Conferma Prelievo"
-    ):
+    if result["difference"] == 0:
+        st.success("Importo ottenuto esattamente.")
+    else:
+        st.warning(
+            f"Differenza di {symbol}{result['difference']:,.0f}"
+        )
+
+    if st.button("✅ Conferma Prelievo"):
 
         for item in result["details"]:
+            tag = str(item["tag"])
+            warehouse[currency][tag] -= item["notes_taken"]
 
-            tag = str(
-                item["tag"]
-            )
+        save_warehouse(warehouse)
 
-            warehouse[currency][tag] -= (
-                item["notes_taken"]
-            )
+        history = load_history()
 
-        save_warehouse(
-            warehouse
-        )
+        history.append({
+            "timestamp":
+                datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "currency":
+                currency,
+            "requested":
+                result["requested_amount"],
+            "obtained":
+                result["obtained_amount"],
+            "difference":
+                result["difference"],
+            "details":
+                result["details"]
+        })
 
-        history = (
-            load_history()
-        )
+        save_history(history)
 
-        history.append(
-            {
-                "timestamp":
-                    datetime.now()
-                    .strftime(
-                        "%d/%m/%Y %H:%M:%S"
-                    ),
+        del st.session_state["result"]
+        del st.session_state["result_currency"]
 
-                "currency":
-                    currency,
-
-                "requested":
-                    result[
-                        "requested_amount"
-                    ],
-
-                "obtained":
-                    result[
-                        "obtained_amount"
-                    ],
-
-                "details":
-                    result[
-                        "details"
-                    ]
-            }
-        )
-
-        save_history(
-            history
-        )
-
-        st.success(
-            "Prelievo registrato."
-        )
-
-        del st.session_state[
-            "result"
-        ]
-
+        st.success("Prelievo registrato.")
         st.rerun()

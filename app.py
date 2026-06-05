@@ -1,6 +1,6 @@
 import streamlit as st
-import json
-import os
+from utils.storage import load_warehouse
+from utils.constants import CURRENCIES, CURRENCY_SYMBOLS
 
 st.set_page_config(
     page_title="Cash Warehouse Manager",
@@ -8,424 +8,54 @@ st.set_page_config(
     layout="wide"
 )
 
-# -----------------------------
-# FILES
-# -----------------------------
+st.title("💰 Cash Warehouse Manager")
 
-WAREHOUSE_FILE = "warehouse.json"
-HISTORY_FILE = "history.json"
+warehouse = load_warehouse()
 
-# -----------------------------
-# UTILS
-# -----------------------------
+cards = st.columns(4)
 
-def load_warehouse():
-    if not os.path.exists(WAREHOUSE_FILE):
-        return {
-            "EUR":{"100":0,"50":0,"20":0},
-            "USD":{"100":0,"50":0,"20":0,"10":0},
-            "JPY":{"10000":0,"5000":0,"1000":0},
-            "GBP":{"50":0,"20":0,"10":0,"5":0}
-        }
+for i, (currency, tags) in enumerate(CURRENCIES.items()):
 
-    with open(WAREHOUSE_FILE,"r") as f:
-        return json.load(f)
+    symbol = CURRENCY_SYMBOLS[currency]
+    total_bundles = 0
+    total_value = 0
 
-def save_warehouse(data):
-    with open(WAREHOUSE_FILE,"w") as f:
-        json.dump(data,f,indent=4)
+    for tag in tags:
+        qty = int(warehouse.get(currency, {}).get(str(tag), 0))
+        total_bundles += qty // 100
+        total_value += qty * tag
 
-def load_history():
-    if not os.path.exists(HISTORY_FILE):
-        return []
-
-    with open(HISTORY_FILE,"r") as f:
-        return json.load(f)
-
-def save_history(data):
-    with open(HISTORY_FILE,"w") as f:
-        json.dump(data,f,indent=4)
-
-# -----------------------------
-# VALUTE
-# -----------------------------
-
-currencies = {
-    "EUR": [100, 50, 20],
-    "USD": [100, 50, 20, 10],
-    "JPY": [10000, 5000, 1000],
-    "GBP": [50, 20, 10, 5]
-}
-
-currency_symbols = {
-    "EUR": "€",
-    "USD": "$",
-    "JPY": "¥",
-    "GBP": "£"
-}
-
-# -----------------------------
-# MENU
-# -----------------------------
-
-page = st.sidebar.radio(
-    "Navigazione",
-    [
-        "Dashboard",
-        "Magazzino",
-        "Richiesta",
-        "Storico"
-    ]
-)
-
-# -----------------------------
-# DASHBOARD
-# -----------------------------
-
-if page == "Dashboard":
-
-    st.title("💰 Cash Warehouse Manager")
-
-    warehouse = load_warehouse()
-
-    cards = st.columns(4)
-
-    configs = [
-        ("EUR", "€"),
-        ("USD", "$"),
-        ("JPY", "¥"),
-        ("GBP", "£")
-    ]
-
-    for i, (currency, symbol) in enumerate(configs):
-
-        total_notes = 0
-        total_bundles = 0
-        total_value = 0
-
-        for tag, qty in warehouse[currency].items():
-
-            qty = int(qty)
-
-            total_notes += qty
-            total_bundles += qty // 100
-            total_value += qty * int(tag)
-
-        cards[i].markdown(
-            f"""
-            <div style="
-                background:#1E1E1E;
-                padding:20px;
-                border-radius:15px;
-                border:1px solid #333;
-                text-align:center;
-            ">
-                <h1>{symbol}</h1>
-                <h3>{total_bundles} mazzette</h3>
-                <h4>{total_value:,.0f}</h4>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.divider()
-
-    st.subheader("📦 Dettaglio Magazzino")
-
-    for currency, symbol in configs:
-
-        st.markdown(f"## {symbol}")
-
-        cols = st.columns(len(warehouse[currency]))
-
-        for i, (tag, qty) in enumerate(
-            warehouse[currency].items()
-        ):
-
-            cols[i].metric(
-                f"{tag}",
-                f"{qty // 100} mazz."
-            )
-# -----------------------------
-# MAGAZZINO
-# -----------------------------
-
-elif page == "Magazzino":
-
-    st.title("📦 Magazzino")
-
-    warehouse = load_warehouse()
-
-    currencies = {
-        "EUR": [100, 50, 20],
-        "USD": [100, 50, 20, 10],
-        "JPY": [10000, 5000, 1000],
-        "GBP": [50, 20, 10, 5]
-    }
-
-    additions = {}
-
-    for currency, tags in currencies.items():
-
-        st.subheader(currency)
-
-        cols = st.columns(len(tags))
-
-        additions[currency] = {}
-
-        for i, tag in enumerate(tags):
-
-            current_stock = int(
-                warehouse[currency].get(
-                    str(tag),
-                    0
-                )
-            )
-
-            cols[i].metric(
-                f"{tag}",
-                f"{current_stock:,}"
-            )
-
-            additions[currency][str(tag)] = cols[i].number_input(
-                label=f"Aggiungi {tag}",
-                min_value=0,
-                value=0,
-                step=100,
-                key=f"add_{currency}_{tag}"
-            )
-
-            cols[i].caption(
-                f"📦 Stock: {current_stock // 100} mazzette"
-            )
-
-        st.divider()
-
-    if st.button(
-        "💾 Salva",
-        key="save_warehouse"
-    ):
-
-        for currency, tags in additions.items():
-
-            for tag, value in tags.items():
-
-                warehouse[currency][tag] += int(value)
-
-        save_warehouse(
-            warehouse
-        )
-
-        st.success(
-            "Magazzino aggiornato"
-        )
-
-        st.rerun()
-
-# -----------------------------
-# RICHIESTA
-# -----------------------------
-
-elif page == "Richiesta":
-
-    import pandas as pd
-
-    from utils.calculator import (
-        calculate_withdrawal
+    cards[i].markdown(
+        f"""
+        <div style="
+            background:#1E1E1E;
+            padding:20px;
+            border-radius:15px;
+            border:1px solid #333;
+            text-align:center;
+        ">
+            <h1>{symbol}</h1>
+            <h3>{total_bundles} mazzette</h3>
+            <h4>{total_value:,.0f}</h4>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
-    st.title("💸 Nuova Richiesta")
+st.divider()
 
-    warehouse = load_warehouse()
+st.subheader("📦 Dettaglio Magazzino")
 
-    currency = st.selectbox(
-        "Valuta",
-        ["EUR", "USD", "JPY", "GBP"],
-        key="currency_select"
-    )
+for currency, tags in CURRENCIES.items():
 
-    amount = st.number_input(
-        "Importo richiesto",
-        min_value=0,
-        step=1000,
-        key="requested_amount"
-    )
+    symbol = CURRENCY_SYMBOLS[currency]
+    st.markdown(f"## {symbol} {currency}")
+    cols = st.columns(len(tags))
 
-    if st.button(
-        "🧮 Calcola",
-        key="calculate_button"
-    ):
-
-        st.write("WAREHOUSE")
-        st.write(warehouse)
-        
-        result = calculate_withdrawal(
-            currency,
-            amount,
-            warehouse
+    for i, tag in enumerate(tags):
+        qty = int(warehouse.get(currency, {}).get(str(tag), 0))
+        cols[i].metric(
+            label=str(tag),
+            value=f"{qty // 100} mazz.",
+            help=f"{qty:,} banconote totali"
         )
-
-        st.session_state["withdrawal_result"] = result
-
-    if "withdrawal_result" in st.session_state:
-
-        result = st.session_state["withdrawal_result"]
-
-        st.divider()
-
-        col1, col2, col3 = st.columns(3)
-
-        col1.metric(
-            "Richiesto",
-            f"{result['requested_amount']:,.0f}"
-        )
-
-        col2.metric(
-            "Ottenuto",
-            f"{result['obtained_amount']:,.0f}"
-        )
-
-        col3.metric(
-            "Differenza",
-            f"{result['difference']:,.0f}"
-        )
-
-        st.divider()
-
-        rows = []
-
-        for item in result["details"]:
-
-            rows.append({
-                "Taglio": item["tag"],
-                "Mazzette": item["bundles_taken"],
-                "Banconote": item["notes_taken"],
-                "Valore": item["value_taken"],
-                "Residuo Mazzette": item["remaining_bundles"]
-            })
-
-        df = pd.DataFrame(rows)
-
-        st.subheader("📦 Composizione Prelievo")
-
-        st.dataframe(
-            df,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        if result["difference"] == 0:
-            st.success(
-                "Importo ottenuto esattamente."
-            )
-        else:
-            st.warning(
-                f"Differenza di {result['difference']:,.0f}"
-            )
-
-        if st.button(
-            "✅ Conferma Prelievo",
-            key="confirm_withdrawal"
-        ):
-
-            for item in result["details"]:
-
-                warehouse[currency][str(item["tag"])] -= (
-                    item["notes_taken"]
-                )
-
-            save_warehouse(
-                warehouse
-            )
-
-            history = load_history()
-
-            from datetime import datetime
-
-            history.append({
-                "timestamp":
-                    datetime.now().strftime(
-                        "%d/%m/%Y %H:%M:%S"
-                    ),
-                **result
-            })
-
-            save_history(
-                history
-            )
-
-            del st.session_state[
-                "withdrawal_result"
-            ]
-
-            st.success(
-                "Prelievo registrato."
-            )
-
-            st.rerun()
-
-# -----------------------------
-# STORICO
-# -----------------------------
-
-elif page == "Storico":
-
-    import pandas as pd
-
-    st.title("📜 Storico Operazioni")
-
-    history = load_history()
-
-    if not history:
-
-        st.info(
-            "Nessuna operazione registrata."
-        )
-
-    else:
-
-        rows = []
-
-        for op in history:
-
-            rows.append({
-                "Data":
-                    op.get(
-                        "timestamp",
-                        "-"
-                    ),
-                "Valuta":
-                    op["currency"],
-                "Richiesto":
-                    op["requested_amount"],
-                "Ottenuto":
-                    op["obtained_amount"],
-                "Differenza":
-                    op["difference"]
-            })
-
-        st.dataframe(
-            pd.DataFrame(rows),
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.divider()
-
-        for i, op in enumerate(
-            reversed(history)
-        ):
-
-            with st.expander(
-                f"{op.get('timestamp','-')} | {op['currency']} | {op['requested_amount']:,.0f}"
-            ):
-
-                details = pd.DataFrame(
-                    op["details"]
-                )
-
-                st.dataframe(
-                    details,
-                    use_container_width=True,
-                    hide_index=True
-                )
