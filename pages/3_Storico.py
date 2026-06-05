@@ -3,10 +3,6 @@ import pandas as pd
 
 from utils.storage import load_history
 from utils.constants import CURRENCY_SYMBOLS
-from utils.styles import inject_css
-
-st.set_page_config(page_title="Storico", page_icon="📜", layout="wide")
-inject_css()
 
 st.markdown("""
 <p class="cwm-page-title">📜 Storico Operazioni</p>

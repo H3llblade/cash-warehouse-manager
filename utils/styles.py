@@ -7,9 +7,12 @@ _CSS = """
 /* ─── Base ─────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; }
 
-#MainMenu, footer { visibility: hidden; }
-[data-testid="stToolbar"]   { display: none !important; }
-[data-testid="stDecoration"]{ display: none !important; }
+#MainMenu, footer            { visibility: hidden; }
+[data-testid="stToolbar"]    { display: none !important; }
+[data-testid="stDecoration"] { display: none !important; }
+[data-testid="stHeader"]     { display: none !important; }
+[data-testid="stStatusWidget"]{ display: none !important; }
+.stAppHeader                 { display: none !important; }
 
 ::-webkit-scrollbar              { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track        { background: transparent; }
@@ -385,6 +388,59 @@ details > div { background: #0D0D18 !important; padding: 16px !important; }
 }
 .cwm-empty-icon { font-size: 3rem; margin-bottom: 12px; }
 .cwm-empty-text { font-size: 0.9rem; font-weight: 500; }
+
+/* ── Detail grid (Dashboard — uniformi) ─────────────────────────────── */
+.cwm-det-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 10px;
+}
+.cwm-det-currency {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    padding-top: 18px;
+    min-width: 36px;
+    text-align: right;
+}
+.cwm-det-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    flex: 1;
+}
+.cwm-det-box {
+    background: #111120;
+    border: 1px solid rgba(124,58,237,0.16);
+    border-radius: 12px;
+    padding: 14px 16px;
+    min-width: 0;
+}
+.cwm-det-empty {
+    background: transparent;
+    border-color: transparent;
+}
+.cwm-det-tag {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+.cwm-det-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #F1F5F9;
+    letter-spacing: -0.3px;
+    margin-bottom: 2px;
+}
+.cwm-det-notes {
+    font-size: 0.68rem;
+    color: #334155;
+}
 </style>
 """
 

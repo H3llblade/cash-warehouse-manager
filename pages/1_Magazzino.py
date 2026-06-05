@@ -1,10 +1,6 @@
 import streamlit as st
 from utils.storage import load_warehouse, save_warehouse
 from utils.constants import CURRENCIES, CURRENCY_SYMBOLS
-from utils.styles import inject_css
-
-st.set_page_config(page_title="Magazzino", page_icon="📦", layout="wide")
-inject_css()
 
 st.markdown("""
 <p class="cwm-page-title">📦 Gestione Magazzino</p>

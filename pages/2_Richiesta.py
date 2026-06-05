@@ -5,10 +5,6 @@ from datetime import datetime
 from utils.storage import load_warehouse, save_warehouse, load_history, save_history
 from utils.constants import CURRENCIES, CURRENCY_SYMBOLS
 from utils.calculator import calculate_withdrawal
-from utils.styles import inject_css
-
-st.set_page_config(page_title="Nuova Richiesta", page_icon="💸", layout="wide")
-inject_css()
 
 st.markdown("""
 <p class="cwm-page-title">💸 Nuova Richiesta</p>
