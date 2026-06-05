@@ -1,29 +1,39 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
+
+from utils.storage import (
+    load_warehouse,
+    save_warehouse,
+    load_history,
+    save_history
+)
 
 from utils.constants import (
     CURRENCIES,
     CURRENCY_SYMBOLS
 )
 
-from utils.storage import (
-    load_warehouse
-)
-
 from utils.calculator import (
     calculate_withdrawal
 )
 
-st.title("💸 Nuova Richiesta")
+st.title(
+    "💸 Nuova Richiesta"
+)
 
 warehouse = load_warehouse()
 
 currency = st.selectbox(
     "Valuta",
-    list(CURRENCIES.keys())
+    list(
+        CURRENCIES.keys()
+    )
 )
 
-symbol = CURRENCY_SYMBOLS[currency]
+symbol = (
+    CURRENCY_SYMBOLS[currency]
+)
 
 amount = st.number_input(
     f"Importo richiesto ({symbol})",
@@ -39,58 +49,99 @@ if st.button("🧮 Calcola"):
         warehouse
     )
 
-    st.subheader("Riepilogo")
+    st.session_state[
+        "result"
+    ] = result
 
-    col1, col2, col3 = st.columns(3)
+if "result" in st.session_state:
 
-    col1.metric(
-        "Richiesto",
-        f"{symbol}{result['requested_amount']:,.0f}"
+    result = (
+        st.session_state["result"]
     )
 
-    col2.metric(
-        "Ottenuto",
+    st.subheader(
+        "Risultato"
+    )
+
+    st.metric(
+        "Totale ottenuto",
         f"{symbol}{result['obtained_amount']:,.0f}"
     )
 
-    col3.metric(
+    st.metric(
         "Differenza",
         f"{symbol}{result['difference']:,.0f}"
     )
 
-    rows = []
-
-    for item in result["details"]:
-
-        rows.append(
-            {
-                "Taglio":
-                    item["tag"],
-
-                "Banconote da prendere":
-                    item["notes_taken"],
-
-                "Mazzette":
-                    item["bundles_taken"],
-
-                "Valore":
-                    item["value_taken"],
-
-                "Banconote residue":
-                    item["remaining_notes"],
-
-                "Mazzette residue":
-                    item["remaining_bundles"]
-            }
-        )
-
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(
+        result["details"]
+    )
 
     st.dataframe(
         df,
         use_container_width=True
     )
 
-    st.session_state[
-        "last_calculation"
-    ] = result
+    if st.button(
+        "✅ Conferma Prelievo"
+    ):
+
+        for item in result["details"]:
+
+            tag = str(
+                item["tag"]
+            )
+
+            warehouse[currency][tag] -= (
+                item["notes_taken"]
+            )
+
+        save_warehouse(
+            warehouse
+        )
+
+        history = (
+            load_history()
+        )
+
+        history.append(
+            {
+                "timestamp":
+                    datetime.now()
+                    .strftime(
+                        "%d/%m/%Y %H:%M:%S"
+                    ),
+
+                "currency":
+                    currency,
+
+                "requested":
+                    result[
+                        "requested_amount"
+                    ],
+
+                "obtained":
+                    result[
+                        "obtained_amount"
+                    ],
+
+                "details":
+                    result[
+                        "details"
+                    ]
+            }
+        )
+
+        save_history(
+            history
+        )
+
+        st.success(
+            "Prelievo registrato."
+        )
+
+        del st.session_state[
+            "result"
+        ]
+
+        st.rerun()
